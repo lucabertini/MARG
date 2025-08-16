@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Piazza IV Novembrse",
+    "latitude": 43.1121,
+    "longitude": 12.3888,
+    "audioAsset": "assets/1.mp3"
+  },
+  {
+    "name": "Arco Etrusco",
+    "latitude": 43.1143,
+    "longitude": 12.3883,
+    "audioAsset": "assets/2.mp3"
+  }
+]

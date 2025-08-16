@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Margherita Tour Builder</title>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<!-- Plugin CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+    body { padding: 0; margin: 0; font-family: sans-serif; }
+    #map { height: 100vh; width: 100vw; }
+    #export-panel {
+        position: absolute; top: 10px; right: 10px;
+        background: white; padding: 15px; border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.2); z-index: 1000; width: 350px;
+    }
+    #json-output { width: 100%; height: 120px; margin-top: 10px; font-family: monospace; }
+    #export-panel button { margin-top: 5px; }
+    .delete-button {
+        background-color: #E74C3C; color: white; border: none;
+        padding: 5px 10px; border-radius: 4px; cursor: pointer;
+        margin-left: 10px;
+    }
+    #preset-controls { display: flex; align-items: center; gap: 5px; }
+    #preset-name { flex-grow: 1; }
+    #edit-status-panel {
+        display: none; /* Hidden by default */
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #e8f0fe;
+        border-left: 4px solid #4285F4;
+    }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="export-panel">
+    <h3>Tour Controls</h3>
+    <p>Navigate the map, then click to add/edit points.</p>
+    <button onclick="goToHome()">Go to Home Location</button>
+    <button onclick="startNewTour()">New Blank Tour</button>
+    <hr>
+
+    <h4>Manage Presets</h4>
+    <div id="preset-controls">
+        <select id="preset-list"></select>
+        <button onclick="loadPreset()">Load</button>
+        <button onclick="deletePreset()">Delete</button>
+    </div>
+    
+    <div id="edit-status-panel">
+        <p style="margin: 0 0 5px 0;">Currently editing: <strong id="current-preset-label"></strong></p>
+        <button onclick="updateCurrentPreset()">Save Changes</button>
+    </div>
+    
+    <div id="preset-controls" style="margin-top: 10px;">
+        <input type="text" id="preset-name" placeholder="Enter new preset name...">
+        <button onclick="saveAsNewPreset()">Save As New...</button>
+    </div>
+    <hr>
+
+    <h4>Finalize for App</h4>
+    <button onclick="exportJSON()">Generate JSON</button>
+    <textarea id="json-output" readonly placeholder="Your JSON will appear here..."></textarea>
+</div>
+
+<!-- Libraries -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+
+<script>
+    var map = L.map('map').setView([40.8518, 14.2681], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    L.Control.geocoder({ position: 'topleft' }).addTo(map);
+    L.control.locate({ position: 'topleft', strings: { title: "Find my location" } }).addTo(map);
+
+    var tourStopsData = [];
+    var tourStopsMarkers = []; // Will now hold objects: {marker, triggerCircle, volumeCircle}
+    const storageKey = 'margheritaTourPresets';
+    var currentLoadedPresetName = null;
+    var isDirty = false; // Our "unsaved changes" flag
+    let audioPlayer = new Audio(); // Our single, reusable audio player
+
+    // --- AUDIO PREVIEW HELPER ---
+    function handleAudioPreview(shouldPlay, audioFileName) {
+        if (shouldPlay && audioFileName && audioFileName.trim() !== "") {
+            // Stop any sound that's already playing
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+
+            // Tell the player which file to load from our 'audio' folder
+            audioPlayer.src = `audio/${audioFileName}.mp3`;
+            // Play the sound (and catch any potential errors)
+            audioPlayer.play().catch(e => console.error("Audio playback error:", e));
+        } else {
+            // If we're not supposed to play, just stop everything.
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+            audioPlayer.src = ''; // Clear the player
+        }
+    }
+
+    // --- CORE NAVIGATION ---
+    function goToHome() {
+        map.setView([43.0927107, 12.3158395], 19);
+    }
+
+    function startNewTour() {
+        if (!confirmAndProceed()) return; 
+
+        clearMap();
+        setCurrentEditing(null);
+        console.log("Started new blank tour.");
+        isDirty = false;
+    }
+
+    // --- PRESET MANAGEMENT ---
+    function getPresets() { const presetsString = localStorage.getItem(storageKey); return presetsString ? JSON.parse(presetsString) : {}; }
+    function updatePresetList() { const presets = getPresets(); const presetList = document.getElementById('preset-list'); presetList.innerHTML = ''; for (const name in presets) { const option = document.createElement('option'); option.value = name; option.textContent = name; presetList.appendChild(option); } }
+    
+    function saveAsNewPreset() {
+        const nameInput = document.getElementById('preset-name');
+        const name = nameInput.value.trim();
+        if (!name) { alert('Please enter a name for your new preset.'); return; }
+        const presets = getPresets();
+        if (presets[name] && !confirm(`A preset named '${name}' already exists. Do you want to overwrite it?`)) { return; }
+        const activeStops = tourStopsData.filter(stop => stop !== null);
+        presets[name] = activeStops;
+        localStorage.setItem(storageKey, JSON.stringify(presets));
+        alert(`Preset '${name}' saved!`);
+        nameInput.value = '';
+        updatePresetList();
+        setCurrentEditing(name);
+        isDirty = false; 
+    }
+
+    function updateCurrentPreset() {
+        if (!currentLoadedPresetName) { alert("Error: No preset is currently loaded to save."); return; }
+        const presets = getPresets();
+        const activeStops = tourStopsData.filter(stop => stop !== null);
+        presets[currentLoadedPresetName] = activeStops;
+        localStorage.setItem(storageKey, JSON.stringify(presets));
+        alert(`Preset '${currentLoadedPresetName}' updated successfully!`);
+        isDirty = false; 
+    }
+
+    function loadPreset() {
+        if (!confirmAndProceed()) return;
+
+        const presetList = document.getElementById('preset-list');
+        const name = presetList.value;
+        if (!name) { alert('No preset selected to load.'); return; }
+        const presets = getPresets();
+        const presetData = presets[name];
+        clearMap();
+        
+        presetData.forEach(stopData => { addMarkerToMap(stopData.latitude, stopData.longitude, stopData); });
+        setCurrentEditing(name);
+        console.log(`Loaded preset '${name}'.`);
+        isDirty = false;
+    }
+    
+    function setCurrentEditing(name) {
+        const panel = document.getElementById('edit-status-panel');
+        const label = document.getElementById('current-preset-label');
+        if (name) {
+            currentLoadedPresetName = name;
+            label.textContent = name;
+            panel.style.display = 'block';
+        } else {
+            currentLoadedPresetName = null;
+            panel.style.display = 'none';
+        }
+    }
+    
+    function deletePreset() {
+        const presetList = document.getElementById('preset-list');
+        const name = presetList.value;
+        if (!name) { alert('No preset selected to delete.'); return; }
+        if (confirm(`Are you sure you want to delete the preset '${name}'?`)) {
+            const presets = getPresets();
+            delete presets[name];
+            localStorage.setItem(storageKey, JSON.stringify(presets));
+            if (currentLoadedPresetName === name) { 
+                startNewTour(); 
+            }
+            updatePresetList();
+            alert(`Preset '${name}' deleted.`);
+        }
+    }
+
+    function confirmAndProceed() {
+        if (isDirty) {
+            if (!confirm('You have unsaved changes. Are you sure you want to discard them?')) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    // --- MARKER AND MAP FUNCTIONS ---
+    function clearMap() {
+        tourStopsMarkers.forEach(stopObjects => {
+            if (stopObjects) {
+                map.removeLayer(stopObjects.marker);
+                map.removeLayer(stopObjects.triggerCircle);
+                map.removeLayer(stopObjects.volumeCircle);
+            }
+        });
+        tourStopsData = [];
+        tourStopsMarkers = [];
+    }
+    
+    function createPopupContent(data, index) { 
+        const editableAudioFile = data.audioFile.startsWith('assets/') ? data.audioFile.slice(7, -4) : data.audioFile;
+        return `<form onsubmit="updateStopData(event, ${index}); return false;">
+                <b>${data.name} (#${index})</b><br><hr>
+                <label for="name-${index}">Name:</label><br>
+                <input type="text" id="name-${index}" value="${data.name}"><br>
+                
+                <label for="audioFile-${index}">Audio File Name:</label><br>
+                <input type="text" id="audioFile-${index}" value="${editableAudioFile}"><br>
+                
+                <label for="triggerRadius-${index}">Trigger Radius (m):</label><br>
+                <input type="number" id="triggerRadius-${index}" value="${data.triggerRadius}" oninput="previewRadiusChange(event, ${index}, 'trigger')"><br>
+                
+                <label for="maxVolumeRadius-${index}">Max Volume Radius (m):</label><br>
+                <input type="number" id="maxVolumeRadius-${index}" value="${data.maxVolumeRadius}" oninput="previewRadiusChange(event, ${index}, 'volume')"><br><br>
+                
+                <button type="submit">Save</button>
+                <button type="button" class="delete-button" onclick="deleteStop(event, ${index})">Delete</button>
+                </form>`; 
+    }
+
+    function previewRadiusChange(event, index, radiusType) {
+        const stopObjects = tourStopsMarkers[index];
+        const currentStopData = tourStopsData[index];
+        if (!stopObjects || !currentStopData) return;
+
+        const newRadius = parseFloat(event.target.value) || 0;
+
+        if (radiusType === 'trigger') {
+            stopObjects.triggerCircle.setRadius(newRadius);
+            currentStopData.triggerRadius = newRadius;
+        } else if (radiusType === 'volume') {
+            stopObjects.volumeCircle.setRadius(newRadius);
+            currentStopData.maxVolumeRadius = newRadius;
+        }
+        isDirty = true;
+    }
+
+    function addMarkerToMap(lat, lon, existingData = null) {
+        const clickedLocation = L.latLng(lat, lon);
+        const stopIndex = tourStopsData.length;
+
+        var newStopData;
+        if (existingData) {
+            newStopData = existingData;
+        } else {
+            newStopData = {
+                name: "New Stop " + stopIndex,
+                latitude: clickedLocation.lat,
+                longitude: clickedLocation.lng,
+                audioFile: "1", // Sensible default for files like 1.mp3, 2.mp3
+                triggerRadius: 100,
+                maxVolumeRadius: 20
+            };
+        }
+
+        var marker = L.marker(clickedLocation).addTo(map);
+        
+        const triggerCircle = L.circle(clickedLocation, {
+            color: '#4285F4', fillColor: '#4285F4',
+            fillOpacity: 0.1, radius: newStopData.triggerRadius, weight: 1
+        }).addTo(map);
+
+        const volumeCircle = L.circle(clickedLocation, {
+            color: '#34A853', fillColor: '#34A853',
+            fillOpacity: 0.3, radius: newStopData.maxVolumeRadius, weight: 1
+        }).addTo(map);
+
+        // This function is called when the mouse enters a circle.
+        const audioOn = function() {
+            const currentData = tourStopsData[stopIndex];
+            if (currentData) {
+                handleAudioPreview(true, currentData.audioFile);
+            }
+        };
+
+        // This function is called when the mouse leaves.
+        const audioOff = function() {
+            handleAudioPreview(false); // Tell the DJ to stop the music.
+        };
+
+        // Attach the "ears" to both circles
+        triggerCircle.on('mouseover', audioOn);
+        triggerCircle.on('mouseout', audioOff);
+        volumeCircle.on('mouseover', audioOn);
+        volumeCircle.on('mouseout', audioOff);
+
+        tourStopsData.push(newStopData);
+        tourStopsMarkers.push({
+            marker: marker,
+            triggerCircle: triggerCircle,
+            volumeCircle: volumeCircle
+        });
+        
+        marker.bindPopup(createPopupContent(newStopData, stopIndex));
+        if (!existingData) {
+            marker.openPopup();
+        }
+        isDirty = true;
+    }
+
+    function updateStopData(event, index) {
+        L.DomEvent.stopPropagation(event);
+        
+        const stopObjects = tourStopsMarkers[index];
+        if (!stopObjects) return;
+
+        const currentStopData = tourStopsData[index];
+        currentStopData.name = document.getElementById('name-' + index).value;
+        currentStopData.audioFile = document.getElementById('audioFile-' + index).value;
+        
+        stopObjects.marker.bindPopup(createPopupContent(currentStopData, index));
+        stopObjects.marker.closePopup();
+        isDirty = true;
+    }
+
+    function deleteStop(event, index) {
+        L.DomEvent.stopPropagation(event);
+        if (!confirm('Are you sure you want to delete this stop?')) { return; }
+
+        const stopObjectsToRemove = tourStopsMarkers[index];
+        if (stopObjectsToRemove) {
+            map.removeLayer(stopObjectsToRemove.marker);
+            map.removeLayer(stopObjectsToRemove.triggerCircle);
+            map.removeLayer(stopObjectsToRemove.volumeCircle);
+        }
+
+        tourStopsData[index] = null;
+        tourStopsMarkers[index] = null;
+        isDirty = true;
+    }
+    
+    function exportJSON() {
+        const outputArea = document.getElementById('json-output');
+        const activeStops = tourStopsData.filter(stop => stop !== null);
+        const exportableStops = activeStops.map(stop => {
+            return {
+                name: stop.name,
+                latitude: stop.latitude,
+                longitude: stop.longitude,
+                audioFile: `assets/${stop.audioFile}.mp3`,
+                triggerRadius: stop.triggerRadius,
+                maxVolumeRadius: stop.maxVolumeRadius
+            };
+        });
+        const jsonString = JSON.stringify(exportableStops, null, 2);
+        outputArea.value = jsonString;
+    }
+
+    map.on('click', function(e) { addMarkerToMap(e.latlng.lat, e.latlng.lng); });
+    
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            map.closePopup();
+        }
+    });
+
+    // --- INITIALIZATION ---
+    updatePresetList();
+</script>
+</body>
+</html>
