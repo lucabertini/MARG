@@ -198,11 +198,11 @@ class _HomePageState extends State<HomePage> {
           final isPlaying = viewModel.currentlyPlayingIds.contains(stop.name);
           final hasFailed = failedAudioPins.contains(stop.name);
 
+          // --- MODIFICATION: Removed the 'isEditMode' argument from the call. ---
           final icon = PinColor.getPinIcon(
             label: stop.label,
             isPlaying: isPlaying,
             hasFailed: hasFailed,
-            isEditMode: viewModel.isEditModeEnabled,
           );
 
           return Marker(

@@ -43,15 +43,14 @@ class PinColor {
     required TourStopLabel label, // <-- CHANGED from AudioBehavior
     required bool isPlaying,
     required bool hasFailed,
-    required bool isEditMode,
+    // --- MODIFICATION: The 'isEditMode' parameter is no longer needed. ---
   }) {
     // State overrides take precedence.
     if (hasFailed) {
       return BitmapDescriptor.defaultMarkerWithHue(PinColor.failed);
     }
-    if (isEditMode) {
-      return BitmapDescriptor.defaultMarkerWithHue(PinColor.editMode);
-    }
+    // --- MODIFICATION: The check for 'isEditMode' has been removed. ---
+    // Now, pins will be colored according to their label even in Edit Mode.
     if (isPlaying) {
       return BitmapDescriptor.defaultMarkerWithHue(PinColor.playing);
     }
