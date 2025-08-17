@@ -1,4 +1,4 @@
-////////////////////////////////// START OF CODE FOR lib/pages/home_page.dart
+// lib/pages/home_page.dart
 // This file contains the main HomePage widget for the Margherita app.
 
 import 'dart:async';
@@ -13,7 +13,7 @@ import '../models/app_language.dart';
 import '../models/tour_stop.dart';
 import '../services/audio_service.dart';
 import '../view_models/home_page_view_model.dart';
-import '../utils/app_colors.dart'; // Ensure this import points to your color utility file
+import '../utils/app_colors.dart';
 import 'pin_editor_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -198,8 +198,9 @@ class _HomePageState extends State<HomePage> {
           final isPlaying = viewModel.currentlyPlayingIds.contains(stop.name);
           final hasFailed = failedAudioPins.contains(stop.name);
 
+          // --- MODIFIED: Use stop.label for color logic ---
           final icon = PinColor.getPinIcon(
-            behavior: stop.behavior,
+            label: stop.label,
             isPlaying: isPlaying,
             hasFailed: hasFailed,
             isEditMode: viewModel.isEditModeEnabled,
@@ -229,7 +230,8 @@ class _HomePageState extends State<HomePage> {
           );
         }).toSet(),
         circles: tourStops.expand((stop) {
-          final circleBaseColor = PinColor.getCircleColor(stop.behavior);
+          // --- MODIFIED: Use stop.label for color logic ---
+          final circleBaseColor = PinColor.getCircleColor(stop.label);
           return [
             Circle(circleId: CircleId('${stop.name}_trigger'), center: LatLng(stop.latitude, stop.longitude), radius: stop.triggerRadius, fillColor: circleBaseColor.withOpacity(0.1), strokeWidth: 1, strokeColor: circleBaseColor.withOpacity(0.5)),
             Circle(circleId: CircleId('${stop.name}_max_volume'), center: LatLng(stop.latitude, stop.longitude), radius: stop.maxVolumeRadius, fillColor: circleBaseColor.withOpacity(0.2), strokeWidth: 2, strokeColor: circleBaseColor),
@@ -247,7 +249,9 @@ class _HomePageState extends State<HomePage> {
                 audioAsset: viewModel.availableSpeechAssets.isNotEmpty ? viewModel.availableSpeechAssets.first : '',
                 triggerRadius: 50.0,
                 maxVolumeRadius: 10.0,
-                behavior: AudioBehavior.speech);
+                behavior: AudioBehavior.speech,
+                label: TourStopLabel.margherita, // --- FIXED: Provide a default label ---
+            );
             _newPinCounter++;
             _openPinEditor(viewModel, newStop);
           }
@@ -312,5 +316,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
-//////////////////////////////////  END OF FILE

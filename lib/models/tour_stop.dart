@@ -1,8 +1,18 @@
-////////////////////////////////// START OF CODE FOR lib/models/tour_stop.dart
+// lib/models/tour_stop.dart
 
 enum AudioBehavior {
   speech,
   ambient,
+}
+
+/// --- NEW: Defines the character/type of pin for visual purposes ---
+enum TourStopLabel {
+  margherita,
+  caterina,
+  donato,
+  d,
+  antonio,
+  music,
 }
 
 /// --- BLUEPRINT: Defines what a "Tour Stop" is ---
@@ -14,6 +24,7 @@ class TourStop {
   final double triggerRadius;
   final double maxVolumeRadius;
   final AudioBehavior behavior;
+  final TourStopLabel label; // <-- NEW FIELD
 
   TourStop({
     required this.name,
@@ -23,6 +34,7 @@ class TourStop {
     required this.triggerRadius,
     required this.maxVolumeRadius,
     required this.behavior,
+    required this.label, // <-- ADDED TO CONSTRUCTOR
   });
 
   TourStop copyWith({
@@ -33,6 +45,7 @@ class TourStop {
     double? triggerRadius,
     double? maxVolumeRadius,
     AudioBehavior? behavior,
+    TourStopLabel? label, // <-- ADDED TO COPYWITH
   }) {
     return TourStop(
       name: name ?? this.name,
@@ -42,14 +55,23 @@ class TourStop {
       triggerRadius: triggerRadius ?? this.triggerRadius,
       maxVolumeRadius: maxVolumeRadius ?? this.maxVolumeRadius,
       behavior: behavior ?? this.behavior,
+      label: label ?? this.label, // <-- ADDED TO COPYWITH
     );
   }
 
   factory TourStop.fromJson(Map<String, dynamic> json) {
+    // Behavior parsing (unchanged)
     String behaviorString = json['behavior'] ?? 'ambient';
     AudioBehavior behavior = AudioBehavior.values.firstWhere(
-          (e) => e.name == behaviorString,
+      (e) => e.name == behaviorString,
       orElse: () => AudioBehavior.ambient,
+    );
+
+    // --- NEW: Label parsing ---
+    String labelString = json['label'] ?? 'margherita'; // Default to margherita
+    TourStopLabel label = TourStopLabel.values.firstWhere(
+      (e) => e.name == labelString,
+      orElse: () => TourStopLabel.margherita, // Fallback default
     );
 
     return TourStop(
@@ -60,6 +82,7 @@ class TourStop {
       triggerRadius: (json['triggerRadius'] as num).toDouble(),
       maxVolumeRadius: (json['maxVolumeRadius'] as num).toDouble(),
       behavior: behavior,
+      label: label, // <-- PASS TO CONSTRUCTOR
     );
   }
 
@@ -72,7 +95,7 @@ class TourStop {
       'triggerRadius': triggerRadius,
       'maxVolumeRadius': maxVolumeRadius,
       'behavior': behavior.name,
+      'label': label.name, // <-- ADDED TO JSON
     };
   }
 }
-//////////////////////////////////  END OF FILE
