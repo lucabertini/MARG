@@ -1,7 +1,8 @@
-//////////////////////////////////  START OF CODE FOR lib/languages.dart
+//////////////////////////////////  START OF CODE FOR 
+///lib/languages.dart
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // <-- THIS IS THE FIX. THE MISSING IMPORT.
+import 'package:provider/provider.dart'; 
 
 import 'intro_pages.dart';
 import 'models/app_language.dart';

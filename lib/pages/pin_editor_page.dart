@@ -2,24 +2,21 @@
 
 import 'package:flutter/material.dart';
 import '../models/tour_stop.dart';
-import 'package:collection/collection.dart'; // Add this import for .firstWhereOrNull
 
 // Helper function to capitalize strings
-String capitalize(String s) => s[0].toUpperCase() + s.substring(1);
+String capitalize(String s) => s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
 
 /// --- WIDGET: The Full-Screen Pin Editor Page ---
 class PinEditorPage extends StatefulWidget {
   final TourStop initialStop;
-  final List<String> availableSpeechAssets;
-  final List<String> availableAmbientAssets;
+  final Map<TourStopLabel, List<String>> availableAssetsByLabel;
   final List<TourStop> allStops;
   final bool isCreating;
 
   const PinEditorPage({
     super.key,
     required this.initialStop,
-    required this.availableSpeechAssets,
-    required this.availableAmbientAssets,
+    required this.availableAssetsByLabel,
     required this.allStops,
     required this.isCreating,
   });
@@ -34,12 +31,13 @@ class _PinEditorPageState extends State<PinEditorPage> {
       _maxVolumeRadiusController;
   late String? _selectedAudioAsset;
   late AudioBehavior _selectedBehavior;
-  late TourStopLabel _selectedLabel; // <-- NEW STATE
+  late TourStopLabel _selectedLabel;
 
+  // --- FIX #1: Add a dynamic getter for the current asset list ---
+  // This getter ensures that whenever the UI rebuilds, it fetches the
+  // correct list of audio files based on the *currently selected* label.
   List<String> get currentAssetList {
-    return _selectedBehavior == AudioBehavior.speech
-        ? widget.availableSpeechAssets
-        : widget.availableAmbientAssets;
+    return widget.availableAssetsByLabel[_selectedLabel] ?? [];
   }
 
   @override
@@ -52,9 +50,9 @@ class _PinEditorPageState extends State<PinEditorPage> {
     _maxVolumeRadiusController =
         TextEditingController(text: stop.maxVolumeRadius.toString());
     _selectedBehavior = stop.behavior;
-    _selectedLabel = stop.label; // <-- INITIALIZE LABEL
+    _selectedLabel = stop.label;
 
-    // Asset selection logic (unchanged)
+    // Use the new getter to correctly initialize the audio asset selection
     if (currentAssetList.contains(stop.audioAsset)) {
       _selectedAudioAsset = stop.audioAsset;
     } else if (currentAssetList.isNotEmpty) {
@@ -102,7 +100,7 @@ class _PinEditorPageState extends State<PinEditorPage> {
       triggerRadius: double.tryParse(_triggerRadiusController.text) ?? 50.0,
       maxVolumeRadius: double.tryParse(_maxVolumeRadiusController.text) ?? 10.0,
       behavior: _selectedBehavior,
-      label: _selectedLabel, // <-- SAVE THE SELECTED LABEL
+      label: _selectedLabel,
     );
     Navigator.of(context).pop(updatedStop);
   }
@@ -128,6 +126,7 @@ class _PinEditorPageState extends State<PinEditorPage> {
     });
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -144,12 +143,13 @@ class _PinEditorPageState extends State<PinEditorPage> {
       body: ListView(padding: const EdgeInsets.all(16.0), children: [
         _buildTextField(_nameController, 'Name'),
         const SizedBox(height: 24),
-        _buildLabelDropdown(), // <-- NEW DROPDOWN WIDGET
+        _buildLabelDropdown(),
         const SizedBox(height: 24),
-        _buildBehaviorDropdown(),
-        const SizedBox(height: 24),
+        // --- FIX #3: Use the `currentAssetList` getter here ---
         _buildAudioDropdown('Audio File', _selectedAudioAsset, currentAssetList,
             (newValue) => setState(() => _selectedAudioAsset = newValue)),
+        const SizedBox(height: 24),
+        _buildBehaviorDropdown(),
         const SizedBox(height: 24),
         _buildTextField(
             _triggerRadiusController, 'Trigger Radius (meters)', TextInputType.number),
@@ -182,8 +182,22 @@ class _PinEditorPageState extends State<PinEditorPage> {
 
   Widget _buildAudioDropdown(String label, String? value, List<String> items,
       ValueChanged<String?> onChanged) {
+    // If there are no items, show a disabled-looking field.
+    if (items.isEmpty) {
+        return TextFormField(
+            readOnly: true,
+            decoration: InputDecoration(
+                labelText: label,
+                hintText: 'No audio files for this label',
+                border: const OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.grey.shade800
+            ),
+        );
+    }
+    
     return DropdownButtonFormField<String>(
-      value: value,
+      value: items.contains(value) ? value : null,
       items: items
           .map((String filename) => DropdownMenuItem<String>(
               value: filename,
@@ -196,7 +210,6 @@ class _PinEditorPageState extends State<PinEditorPage> {
     );
   }
 
-  // --- NEW DROPDOWN WIDGET FOR LABELS ---
   Widget _buildLabelDropdown() {
     return DropdownButtonFormField<TourStopLabel>(
       value: _selectedLabel,
@@ -204,15 +217,28 @@ class _PinEditorPageState extends State<PinEditorPage> {
           .map((TourStopLabel label) => DropdownMenuItem<TourStopLabel>(
               value: label, child: Text(capitalize(label.name))))
           .toList(),
+      // --- FIX #2: Implement the full logic in the onChanged callback ---
       onChanged: (newValue) {
         if (newValue != null) {
+          // This setState call is crucial. It tells Flutter to rebuild the UI.
           setState(() {
+            // 1. Update the selected label.
             _selectedLabel = newValue;
+            
+            // 2. Get the list of assets for the NEW label.
+            final newAssetList = widget.availableAssetsByLabel[_selectedLabel] ?? [];
+
+            // 3. Check if the old audio file is in the new list.
+            if (!newAssetList.contains(_selectedAudioAsset)) {
+              // 4. If not, reset the audio file selection to the first item
+              //    in the new list, or null if it's empty.
+              _selectedAudioAsset = newAssetList.isNotEmpty ? newAssetList.first : null;
+            }
           });
         }
       },
       decoration:
-          const InputDecoration(labelText: 'Label', border: OutlineInputBorder()),
+          const InputDecoration(labelText: 'Label (Character/Type)', border: OutlineInputBorder()),
     );
   }
 
@@ -227,16 +253,11 @@ class _PinEditorPageState extends State<PinEditorPage> {
         if (newValue != null) {
           setState(() {
             _selectedBehavior = newValue;
-            // Asset selection logic (unchanged)
-            if (!currentAssetList.contains(_selectedAudioAsset)) {
-              _selectedAudioAsset =
-                  currentAssetList.isNotEmpty ? currentAssetList.first : null;
-            }
           });
         }
       },
       decoration: const InputDecoration(
-          labelText: 'Audio Behavior', border: OutlineInputBorder()),
+          labelText: 'Audio Behavior (Playback Rule)', border: OutlineInputBorder()),
     );
   }
 }

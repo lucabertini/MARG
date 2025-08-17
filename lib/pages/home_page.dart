@@ -1,3 +1,4 @@
+////////////////////////////////// START OF CODE FOR 
 // lib/pages/home_page.dart
 // This file contains the main HomePage widget for the Margherita app.
 
@@ -70,8 +71,7 @@ class _HomePageState extends State<HomePage> {
     final result = await Navigator.push(context, MaterialPageRoute(builder: (context) =>
         PinEditorPage(
           initialStop: stopToEdit,
-          availableSpeechAssets: viewModel.availableSpeechAssets,
-          availableAmbientAssets: viewModel.availableAmbientAssets,
+          availableAssetsByLabel: viewModel.availableAssetsByLabel,
           allStops: viewModel.tourStops,
           isCreating: isCreatingNewPin,
         )));
@@ -198,7 +198,6 @@ class _HomePageState extends State<HomePage> {
           final isPlaying = viewModel.currentlyPlayingIds.contains(stop.name);
           final hasFailed = failedAudioPins.contains(stop.name);
 
-          // --- MODIFIED: Use stop.label for color logic ---
           final icon = PinColor.getPinIcon(
             label: stop.label,
             isPlaying: isPlaying,
@@ -230,7 +229,6 @@ class _HomePageState extends State<HomePage> {
           );
         }).toSet(),
         circles: tourStops.expand((stop) {
-          // --- MODIFIED: Use stop.label for color logic ---
           final circleBaseColor = PinColor.getCircleColor(stop.label);
           return [
             Circle(circleId: CircleId('${stop.name}_trigger'), center: LatLng(stop.latitude, stop.longitude), radius: stop.triggerRadius, fillColor: circleBaseColor.withOpacity(0.1), strokeWidth: 1, strokeColor: circleBaseColor.withOpacity(0.5)),
@@ -242,15 +240,20 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.only(bottom: mapPadding),
         onLongPress: (LatLng latLng) {
           if (viewModel.isEditModeEnabled && !_isMarkerBeingDragged) {
+            // --- THIS IS THE CORRECTED LOGIC ---
+            final defaultLabel = TourStopLabel.margherita;
+            final assetsForDefaultLabel = viewModel.availableAssetsByLabel[defaultLabel] ?? [];
+            final defaultAudioAsset = assetsForDefaultLabel.isNotEmpty ? assetsForDefaultLabel.first : '';
+
             final newStop = TourStop(
                 name: 'New Pin $_newPinCounter',
                 latitude: latLng.latitude,
                 longitude: latLng.longitude,
-                audioAsset: viewModel.availableSpeechAssets.isNotEmpty ? viewModel.availableSpeechAssets.first : '',
+                audioAsset: defaultAudioAsset,
                 triggerRadius: 50.0,
                 maxVolumeRadius: 10.0,
                 behavior: AudioBehavior.speech,
-                label: TourStopLabel.margherita, // --- FIXED: Provide a default label ---
+                label: defaultLabel,
             );
             _newPinCounter++;
             _openPinEditor(viewModel, newStop);

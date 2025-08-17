@@ -1,3 +1,4 @@
+////////////////////////////////// START OF CODE FOR 
 // lib/models/tour_stop.dart
 
 enum AudioBehavior {
@@ -95,7 +96,7 @@ class TourStop {
       'triggerRadius': triggerRadius,
       'maxVolumeRadius': maxVolumeRadius,
       'behavior': behavior.name,
-      'label': label.name, // <-- ADDED TO JSON
+      'label': label.name, 
     };
   }
 }

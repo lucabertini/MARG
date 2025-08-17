@@ -37,9 +37,16 @@ flutter:
 
   assets:
     - assets/
-    - assets/audio/it/
-    - assets/audio/en/
-    - assets/sounds/     
-    - assets/tour.json     
     - assets/images/
-
+    - assets/sounds/
+    - assets/audio/lang_en/antonio/
+    - assets/audio/lang_en/caterina/
+    - assets/audio/lang_en/d/
+    - assets/audio/lang_en/donato/
+    - assets/audio/lang_en/margherita/
+    - assets/audio/lang_it/antonio/
+    - assets/audio/lang_it/caterina/
+    - assets/audio/lang_it/d/
+    - assets/audio/lang_it/donato/
+    - assets/audio/lang_it/margherita/
+    - assets/tour.json

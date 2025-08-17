@@ -1,4 +1,5 @@
-//////////////////////////////////  START OF CODE FOR lib/main.dart
+//////////////////////////////////  START OF CODE FOR 
+///lib/main.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -31,33 +32,40 @@ class MargheritaApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         // --- Independent Services (Level 0) ---
+        // These have no dependencies on other services.
         Provider<TourDataService>(create: (_) => TourDataService()),
         Provider<LocationService>(create: (_) => LocationService()),
         Provider<TourProximityService>(create: (_) => TourProximityService()),
-        Provider<AudioService>(
-          create: (_) => AudioService(),
-          dispose: (_, service) => service.dispose(),
-        ),
-
+        
         // --- Dependent Services (Level 1) ---
-        // These use ProxyProviders because they depend on the services above.
+        // These depend on the services above.
+        
+        // TourStateService depends on TourDataService
         ProxyProvider<TourDataService, TourStateService>(
           update: (_, tourDataService, __) => TourStateService(tourDataService: tourDataService),
           dispose: (_, service) => service.dispose(),
         ),
+        
+        // AudioService depends on TourStateService
+        ProxyProvider<TourStateService, AudioService>(
+          update: (_, tourStateService, __) => AudioService(tourStateService: tourStateService),
+          dispose: (_, service) => service.dispose(),
+        ),
+        
+        // --- Dependent Services (Level 2) ---
+        // TourPlaybackService depends on multiple services from previous levels.
         ProxyProvider4<LocationService, AudioService, TourProximityService, TourStateService, TourPlaybackService>(
-          update: (_, location, audio, proximity, state, __) => TourPlaybackService(
-            locationService: location,
-            audioService: audio,
-            tourProximityService: proximity,
-            tourStateService: state,
+          update: (_, locationService, audioService, proximityService, tourStateService, __) => TourPlaybackService(
+            locationService: locationService,
+            audioService: audioService,
+            tourProximityService: proximityService,
+            tourStateService: tourStateService,
           ),
           dispose: (_, service) => service.dispose(),
         ),
 
-        // --- ViewModel (Level 2) ---
-        // This depends on multiple services. We use a ChangeNotifierProxyProvider
-        // because our ViewModel is a ChangeNotifier.
+        // --- ViewModel (Level 3) ---
+        // This depends on multiple services. We use a ChangeNotifierProxyProvider.
         ChangeNotifierProxyProvider5<TourDataService, AudioService, TourPlaybackService, TourProximityService, TourStateService, HomePageViewModel>(
           create: (context) {
             // Initial configuration values now live here, centrally.
