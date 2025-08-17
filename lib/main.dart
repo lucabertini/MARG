@@ -1,4 +1,4 @@
-// START OF CODE FOR lib/main.dart
+//////////////////////////////////  START OF CODE FOR lib/main.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -99,4 +99,4 @@ class MargheritaApp extends StatelessWidget {
 // Navigator.pushReplacement(context, MaterialPageRoute(
 //     builder: (context) => const HomePage(), // No more arguments!
 // ));
-// END OF FILE
+//////////////////////////////////  END OF FILE

@@ -1,4 +1,4 @@
-// START OF CODE FOR lib/services/tour_proximity_service.dart
+////////////////////////////////// START OF CODE FOR lib/services/tour_proximity_service.dart
 
 import 'package:geolocator/geolocator.dart';
 // --- MODIFIED --- Import the specific model needed.
@@ -96,4 +96,4 @@ class TourProximityService {
     _triggeredAmbientIds.clear();
   }
 }
-// END OF FILE
+//////////////////////////////////  END OF FILE

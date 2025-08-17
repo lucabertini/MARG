@@ -1,8 +1,5 @@
-// START OF CODE FOR lib/models/tour_stop.dart
+////////////////////////////////// START OF CODE FOR lib/models/tour_stop.dart
 
-//import 'package:flutter/foundation.dart';
-
-/// --- A set of pre-approved choices for how audio should behave ---
 enum AudioBehavior {
   speech,
   ambient,
@@ -78,4 +75,4 @@ class TourStop {
     };
   }
 }
-// END OF FILE
+//////////////////////////////////  END OF FILE

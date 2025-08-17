@@ -1,4 +1,4 @@
-// START OF CODE FOR lib/services/tour_state_service.dart
+////////////////////////////////// START OF CODE FOR lib/services/tour_state_service.dart
 
 import 'package:flutter/foundation.dart';
 // --- MODIFIED --- Import the specific model needed.
@@ -108,4 +108,4 @@ class TourStateService {
     _tourStopsNotifier.dispose();
   }
 }
-// END OF FILE
+//////////////////////////////////  END OF FILE

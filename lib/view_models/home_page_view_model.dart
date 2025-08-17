@@ -1,4 +1,4 @@
-// START OF CODE FOR lib/view_models/home_page_view_model.dart
+//////////////////////////////////  START OF CODE FOR lib/view_models/home_page_view_model.dart
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -199,4 +199,4 @@ class HomePageViewModel extends ChangeNotifier {
     super.dispose();
   }
 }
-// END OF FILE
+//////////////////////////////////  END OF FILE

@@ -1,3 +1,6 @@
+////////////////////////////////// START OF CODE FOR lib/pages/home_page.dart
+// This file contains the main HomePage widget for the Margherita app.
+
 import 'dart:async';
 import 'dart:math';
 
@@ -309,3 +312,5 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+//////////////////////////////////  END OF FILE
