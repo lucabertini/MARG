@@ -1,4 +1,4 @@
-// lib/languages.dart
+// START OF CODE FOR lib/languages.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // <-- THIS IS THE FIX. THE MISSING IMPORT.
@@ -84,3 +84,4 @@ class _LanguagePageState extends State<LanguagePage> {
     );
   }
 }
+// END OF FILE

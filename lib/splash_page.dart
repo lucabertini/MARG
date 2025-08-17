@@ -1,4 +1,4 @@
-// lib/splash_page.dart
+// START OF CODE FOR lib/splash_page.dart
 
 import 'package:flutter/material.dart';
 
@@ -50,4 +50,4 @@ class _SplashPageState extends State<SplashPage> {
   }
 }
 
-// --- THE DUPLICATE LanguagePage CLASS THAT WAS HERE HAS BEEN DELETED ---
+// END OF FILE

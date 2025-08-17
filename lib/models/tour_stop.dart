@@ -1,4 +1,4 @@
-// lib/models/tour_stop.dart
+// START OF CODE FOR lib/models/tour_stop.dart
 
 //import 'package:flutter/foundation.dart';
 
@@ -78,3 +78,4 @@ class TourStop {
     };
   }
 }
+// END OF FILE

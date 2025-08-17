@@ -1,4 +1,4 @@
-// lib/pages/pin_editor_page.dart
+// START OF CODE FOR lib/pages/pin_editor_page.dart
 
 import 'package:flutter/material.dart';
 import '../models/tour_stop.dart'; // Import the extracted model
@@ -153,3 +153,4 @@ class _PinEditorPageState extends State<PinEditorPage> {
     );
   }
 }
+// END OF FILE

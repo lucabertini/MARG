@@ -10,15 +10,12 @@ import '../models/app_language.dart';
 import '../models/tour_stop.dart';
 import '../services/audio_service.dart';
 import '../view_models/home_page_view_model.dart';
+import '../utils/app_colors.dart'; // Ensure this import points to your color utility file
 import 'pin_editor_page.dart';
 
 class HomePage extends StatefulWidget {
-  // --- ADDED THIS PROPERTY ---
-  // This determines if the app is in "production" mode (no map)
-  // or "developer" mode (map is always visible).
   final bool isProductionMode;
 
-  // --- UPDATED THE CONSTRUCTOR ---
   const HomePage({super.key, this.isProductionMode = false});
 
   @override
@@ -27,8 +24,6 @@ class HomePage extends StatefulWidget {
 
 
 class _HomePageState extends State<HomePage> {
-  // --- UI-SPECIFIC STATE ---
-  // Note: Services and the ViewModel are no longer instantiated here!
   GoogleMapController? _mapController;
   int _newPinCounter = 1;
   bool _isMarkerBeingDragged = false;
@@ -37,25 +32,20 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     
-    // Access the ViewModel provided by Provider to kick off initialization.
-    // 'listen: false' is crucial here; we don't want initState to re-run.
     final viewModel = Provider.of<HomePageViewModel>(context, listen: false);
     
-    // Kick off the initialization process in the ViewModel
     viewModel.initialize().then((_) {
-      // Once initialized, zoom the map
-      _zoomToFitAllStops(viewModel.tourStops);
+      if (mounted) {
+        _zoomToFitAllStops(viewModel.tourStops);
+      }
     });
   }
 
   @override
   void dispose() {
     _mapController?.dispose();
-    // No need to dispose services or the ViewModel; the Provider DI system handles that.
     super.dispose();
   }
-
-  // --- UI ACTION HANDLERS (Now accept the ViewModel as a parameter) ---
 
   Future<void> _onLanguageChanged(HomePageViewModel viewModel, AppLanguage? newLanguage) async {
     if (newLanguage == null) return;
@@ -115,7 +105,6 @@ class _HomePageState extends State<HomePage> {
     await viewModel.resetTourData();
   }
 
-  // --- DIALOGS (Pure UI, remains in the View) ---
   void _showResetConfirmationDialog(HomePageViewModel viewModel) {
     showDialog(context: context, builder: (BuildContext context) => AlertDialog(
       title: const Text('Reset Tour?'),
@@ -146,7 +135,6 @@ class _HomePageState extends State<HomePage> {
     ));
   }
 
-  // --- MAP/UI UTILITY (Remains in View) ---
   void _zoomToFitAllStops(List<TourStop> tourStops) {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_mapController == null || tourStops.isEmpty || !mounted) return;
@@ -167,14 +155,11 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // --- UI BUILDING ---
   @override
   Widget build(BuildContext context) {
     return Consumer<HomePageViewModel>(
       builder: (context, viewModel, child) {
-        // The Scaffold is now the single, consistent root widget returned by the page.
         return Scaffold(
-          // The conditional logic is now moved inside the body.
           body: () {
             if (viewModel.isLoading) {
               return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -186,9 +171,8 @@ class _HomePageState extends State<HomePage> {
               return _buildDisabledView();
             }
             
-            // If not loading and not in production mode, show the full map UI.
             return _buildTourUI(viewModel);
-          }(), // Using a self-invoking anonymous function to keep the logic clean.
+          }(),
         );
       },
     );
@@ -196,12 +180,6 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildTourUI(HomePageViewModel viewModel) {
     final audioService = context.read<AudioService>();
-    
-    // --- REMOVED THE INCORRECT CHECK FROM HERE ---
-    // if (!viewModel.isEditModeEnabled) {
-    //   return _buildDisabledView();
-    // }
-    
     final tourStops = viewModel.tourStops;
     final failedAudioPins = viewModel.failedAudioPins;
     const double mapPadding = 270;
@@ -216,10 +194,14 @@ class _HomePageState extends State<HomePage> {
         markers: tourStops.map((stop) {
           final isPlaying = viewModel.currentlyPlayingIds.contains(stop.name);
           final hasFailed = failedAudioPins.contains(stop.name);
-          final icon = hasFailed ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed)
-              : viewModel.isEditModeEnabled ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet)
-              : isPlaying ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
-              : BitmapDescriptor.defaultMarker;
+
+          final icon = PinColor.getPinIcon(
+            behavior: stop.behavior,
+            isPlaying: isPlaying,
+            hasFailed: hasFailed,
+            isEditMode: viewModel.isEditModeEnabled,
+          );
+
           return Marker(
             markerId: MarkerId(stop.name),
             position: LatLng(stop.latitude, stop.longitude),
@@ -243,10 +225,13 @@ class _HomePageState extends State<HomePage> {
             },
           );
         }).toSet(),
-        circles: tourStops.expand((stop) => [
-          Circle(circleId: CircleId('${stop.name}_trigger'), center: LatLng(stop.latitude, stop.longitude), radius: stop.triggerRadius, fillColor: Colors.blue.withOpacity(0.1), strokeWidth: 1, strokeColor: Colors.blue.withOpacity(0.5)),
-          Circle(circleId: CircleId('${stop.name}_max_volume'), center: LatLng(stop.latitude, stop.longitude), radius: stop.maxVolumeRadius, fillColor: Colors.blue.withOpacity(0.2), strokeWidth: 2, strokeColor: Colors.blue),
-        ]).toSet(),
+        circles: tourStops.expand((stop) {
+          final circleBaseColor = PinColor.getCircleColor(stop.behavior);
+          return [
+            Circle(circleId: CircleId('${stop.name}_trigger'), center: LatLng(stop.latitude, stop.longitude), radius: stop.triggerRadius, fillColor: circleBaseColor.withOpacity(0.1), strokeWidth: 1, strokeColor: circleBaseColor.withOpacity(0.5)),
+            Circle(circleId: CircleId('${stop.name}_max_volume'), center: LatLng(stop.latitude, stop.longitude), radius: stop.maxVolumeRadius, fillColor: circleBaseColor.withOpacity(0.2), strokeWidth: 2, strokeColor: circleBaseColor),
+          ];
+        }).toSet(),
         myLocationEnabled: true,
         myLocationButtonEnabled: true,
         padding: const EdgeInsets.only(bottom: mapPadding),

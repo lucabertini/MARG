@@ -1,4 +1,4 @@
-// lib/services/location_service.dart
+// START OF CODE FOR lib/services/location_service.dart
 
 import 'package:geolocator/geolocator.dart';
 
@@ -38,3 +38,4 @@ class LocationService {
     return Geolocator.getPositionStream(locationSettings: locationSettings);
   }
 }
+// END OF FILE

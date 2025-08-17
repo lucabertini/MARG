@@ -1,4 +1,4 @@
-// lib/intro_pages.dart
+// START OF CODE FOR lib/intro_pages.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -219,3 +219,4 @@ class _IntroPagesState extends State<IntroPages> {
     );
   }
 }
+// END OF FILE
