@@ -50,3 +50,4 @@ flutter:
     - assets/audio/lang_it/donato/
     - assets/audio/lang_it/margherita/
     - assets/tour.json
+    - assets/map_styles/dark_mode.json

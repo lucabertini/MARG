@@ -190,15 +190,16 @@ class _HomePageState extends State<HomePage> {
     return Stack(children: [
       GoogleMap(
         initialCameraPosition: CameraPosition(target: tourStops.isNotEmpty ? LatLng(tourStops.first.latitude, tourStops.first.longitude) : const LatLng(41.9028, 12.4964), zoom: 15),
-        onMapCreated: (GoogleMapController controller) {
+        onMapCreated: (GoogleMapController controller) async {
           _mapController = controller;
+          final String mapStyle = await rootBundle.loadString('assets/map_styles/dark_mode.json');
+          await _mapController!.setMapStyle(mapStyle);
           _zoomToFitAllStops(tourStops);
         },
         markers: tourStops.map((stop) {
           final isPlaying = viewModel.currentlyPlayingIds.contains(stop.name);
           final hasFailed = failedAudioPins.contains(stop.name);
 
-          // --- MODIFICATION: Removed the 'isEditMode' argument from the call. ---
           final icon = PinColor.getPinIcon(
             label: stop.label,
             isPlaying: isPlaying,
@@ -240,7 +241,6 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.only(bottom: mapPadding),
         onLongPress: (LatLng latLng) {
           if (viewModel.isEditModeEnabled && !_isMarkerBeingDragged) {
-            // --- THIS IS THE CORRECTED LOGIC ---
             final defaultLabel = TourStopLabel.margherita;
             final assetsForDefaultLabel = viewModel.availableAssetsByLabel[defaultLabel] ?? [];
             final defaultAudioAsset = assetsForDefaultLabel.isNotEmpty ? assetsForDefaultLabel.first : '';
@@ -295,6 +295,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 8),
           ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white), icon: const Icon(Icons.print), label: const Text('Export Tour to JSON'), onPressed: () => _exportToJson(viewModel)),
           const SizedBox(height: 8),
+          // --- THIS IS THE FIX ---
           ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white), icon: const Icon(Icons.delete_sweep), label: const Text('Reset Tour to Default'), onPressed: () => _showResetConfirmationDialog(viewModel)),
         ]
       ]),
