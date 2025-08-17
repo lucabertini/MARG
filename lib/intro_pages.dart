@@ -1,5 +1,5 @@
 //////////////////////////////////  START OF CODE FOR 
-///lib/intro_pages.dart
+// lib/intro_pages.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -90,9 +90,11 @@ class _IntroPagesState extends State<IntroPages> {
     super.dispose();
   }
 
-    void _navigateToHome() {
-    final viewModel = Provider.of<HomePageViewModel>(context, listen: false);
-    viewModel.changeLanguage(widget.language);
+  void _navigateToHome() {
+    // --- THIS IS THE FIX ---
+    // The call to viewModel.changeLanguage() has been removed because the
+    // language was already set correctly on the previous screen (LanguagePage).
+    // This prevents a redundant data reload.
     
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -220,4 +222,3 @@ class _IntroPagesState extends State<IntroPages> {
     );
   }
 }
-//////////////////////////////////  END OF FILE

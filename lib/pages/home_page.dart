@@ -1,6 +1,5 @@
 ////////////////////////////////// START OF CODE FOR 
 // lib/pages/home_page.dart
-// This file contains the main HomePage widget for the Margherita app.
 
 import 'dart:async';
 import 'dart:math';
@@ -32,16 +31,16 @@ class _HomePageState extends State<HomePage> {
   int _newPinCounter = 1;
   bool _isMarkerBeingDragged = false;
 
+  // --- THIS IS THE FIX ---
   @override
   void initState() {
     super.initState();
-    
-    final viewModel = Provider.of<HomePageViewModel>(context, listen: false);
-    
-    viewModel.initialize().then((_) {
-      if (mounted) {
-        _zoomToFitAllStops(viewModel.tourStops);
-      }
+    // Use addPostFrameCallback to ensure the widget tree is fully built
+    // before we try to access the provider.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // This call "wakes up" the location-based audio playback logic
+      // now that the user is viewing the map.
+      Provider.of<HomePageViewModel>(context, listen: false).activatePlayback();
     });
   }
 
@@ -162,6 +161,14 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Consumer<HomePageViewModel>(
       builder: (context, viewModel, child) {
+        // This is a one-time operation after the view model has finished loading.
+        // We listen for the first time isLoading becomes false with content.
+        if (!viewModel.isLoading && viewModel.tourStops.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _zoomToFitAllStops(viewModel.tourStops);
+          });
+        }
+
         return Scaffold(
           body: () {
             if (viewModel.isLoading) {
@@ -194,7 +201,7 @@ class _HomePageState extends State<HomePage> {
           _mapController = controller;
           final String mapStyle = await rootBundle.loadString('assets/map_styles/dark_mode.json');
           await _mapController!.setMapStyle(mapStyle);
-          _zoomToFitAllStops(tourStops);
+          // The zoom operation is now handled in the main build method's post-frame callback
         },
         markers: tourStops.map((stop) {
           final isPlaying = viewModel.currentlyPlayingIds.contains(stop.name);
@@ -295,7 +302,6 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 8),
           ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white), icon: const Icon(Icons.print), label: const Text('Export Tour to JSON'), onPressed: () => _exportToJson(viewModel)),
           const SizedBox(height: 8),
-          // --- THIS IS THE FIX ---
           ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white), icon: const Icon(Icons.delete_sweep), label: const Text('Reset Tour to Default'), onPressed: () => _showResetConfirmationDialog(viewModel)),
         ]
       ]),
@@ -309,11 +315,9 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.map_outlined, size: 60, color: Colors.white38),
             SizedBox(height: 24),
-            Text('Margherita Discovery', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('MARGHERITA', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
             SizedBox(height: 12),
-            Text('The tour is ready. Please enable location services and start exploring!', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.white70)),
           ],
         ),
       ),

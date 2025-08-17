@@ -1,8 +1,6 @@
 //////////////////////////////////  START OF CODE FOR lib/splash_page.dart
 
 import 'package:flutter/material.dart';
-
-// --- THIS IS THE FIX: Import the CORRECT LanguagePage from its own file ---
 import 'languages.dart';
 // ------------------------------------------------------------------------
 
@@ -40,7 +38,6 @@ class _SplashPageState extends State<SplashPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
             SizedBox(height: 20),
             Text('Margherita', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           ],

@@ -1,5 +1,5 @@
 ////////////////////////////////// START OF CODE FOR 
-///lib/services/tour_playback_service.dart
+// lib/services/tour_playback_service.dart
 
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
@@ -23,7 +23,10 @@ class TourPlaybackService {
   StreamSubscription<Position>? _positionSubscription;
   StreamSubscription<Set<String>>? _playingIdsSubscription;
 
-  bool _isPlaybackActive = true;
+  // --- THIS IS THE FIX ---
+  // Start in an inactive state. Playback will only be triggered after
+  // the UI explicitly calls `setPlaybackActive(true)`.
+  bool _isPlaybackActive = false;
   Set<String> _currentlyPlayingIds = {};
 
   TourPlaybackService({
@@ -57,16 +60,18 @@ class TourPlaybackService {
 
   /// Toggles whether the service should process location updates for audio playback.
   ///
-  /// This is typically called when entering/exiting an 'edit mode' in the UI.
+  /// This is typically called when entering/exiting an 'edit mode' in the UI,
+  /// and now also when the HomePage is first displayed.
   void setPlaybackActive(bool isActive) {
     _isPlaybackActive = isActive;
+    debugPrint("[TourPlaybackService] Playback active state set to: $_isPlaybackActive");
   }
 
   /// Subscribes to the location stream and processes updates.
   void _listenToLocation() {
     _positionSubscription = _locationService.getPositionStream().listen(
       (Position position) {
-        // Only process if playback is active (i.e., not in edit mode)
+        // Only process if playback is active (i.e., not in edit mode and HomePage is visible)
         if (!_isPlaybackActive) return;
 
         // Get the current state from the respective services.
@@ -106,4 +111,3 @@ class TourPlaybackService {
     _playingIdsSubscription?.cancel();
   }
 }
-//////////////////////////////////  END OF FILE

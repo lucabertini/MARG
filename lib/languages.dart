@@ -1,5 +1,5 @@
 //////////////////////////////////  START OF CODE FOR 
-///lib/languages.dart
+// lib/languages.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; 
@@ -21,17 +21,22 @@ class _LanguagePageState extends State<LanguagePage> {
 
   void _onLanguageSelected(BuildContext context, AppLanguage lang) {
     final viewModel = Provider.of<HomePageViewModel>(context, listen: false);
-    viewModel.toggleEditMode(_isDebugModeEnabled);
+
+    // --- THIS IS THE FIX ---
+    // Instead of calling toggleEditMode(), which immediately activates playback,
+    // we now just set the state property. The actual activation of playback
+    // will be handled exclusively by the HomePage's initState.
+    viewModel.isEditModeEnabled = _isDebugModeEnabled;
+    
+    // This part is still necessary to load the correct audio files.
     viewModel.changeLanguage(lang);
 
     if (_isDebugModeEnabled) {
-      // --- NO CHANGE NEEDED HERE, USES DEFAULT isProductionMode: false ---
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } else {
-      // For the regular user path, we still go to intros first
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => IntroPages(language: lang)),
@@ -85,4 +90,3 @@ class _LanguagePageState extends State<LanguagePage> {
     );
   }
 }
-//////////////////////////////////  END OF FILE

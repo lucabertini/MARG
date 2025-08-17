@@ -1,5 +1,5 @@
 //////////////////////////////////  START OF CODE FOR 
-///lib/view_models/home_page_view_model.dart
+// lib/view_models/home_page_view_model.dart
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -64,6 +64,9 @@ class HomePageViewModel extends ChangeNotifier {
 
     // Listen to data changes from the state service
     _tourStateService.tourStopsNotifier.addListener(_onTourStopsChanged);
+    
+    // Start loading data immediately when the ViewModel is created.
+    initialize();
   }
 
   void _onTourStopsChanged() {
@@ -72,6 +75,9 @@ class HomePageViewModel extends ChangeNotifier {
 
   // --- INITIALIZATION LOGIC ---
   Future<void> initialize() async {
+    // Prevent re-initialization if called accidentally
+    if (!isLoading) return; 
+
     _updateStatus('Initializing...', notify: false);
     
     await _audioService.loadAvailableAssets(selectedLanguage);
@@ -84,10 +90,20 @@ class HomePageViewModel extends ChangeNotifier {
       _updateStatus('Tour loaded successfully.');
     }
 
-    _tourPlaybackService.setPlaybackActive(!isEditModeEnabled);
+    // NOTE: We no longer call `setPlaybackActive` here.
+    // It will be called from the new `activatePlayback` method.
     isLoading = false;
     notifyListeners();
   }
+  
+  // --- THIS IS THE FIX ---
+  /// Called from the HomePage to enable location-based audio triggers.
+  void activatePlayback() {
+    // Only activate playback if the user is NOT in edit mode.
+    // This ensures the correct state when navigating directly to the home page.
+    _tourPlaybackService.setPlaybackActive(!isEditModeEnabled);
+  }
+
 
   // --- UI ACTION METHODS ---
 
@@ -200,4 +216,3 @@ class HomePageViewModel extends ChangeNotifier {
     super.dispose();
   }
 }
-//////////////////////////////////  END OF FILE
