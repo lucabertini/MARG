@@ -2,4 +2,3 @@
 //lib/models/app_language.dart
 
 enum AppLanguage { it, en }
-//////////////////////////////////  END OF FILE

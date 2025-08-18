@@ -1,4 +1,5 @@
 //////////////////////////////////  START OF CODE FOR 
+////////////////////////////////// START OF CODE FOR
 // lib/view_models/home_page_view_model.dart
 
 import 'dart:async';
@@ -32,6 +33,7 @@ class HomePageViewModel extends ChangeNotifier {
   late AppLanguage selectedLanguage;
   late bool isEditModeEnabled;
   Set<String> currentlyPlayingIds = {};
+  bool showPinInfo = false; // <-- NEW: State for the new toggle
 
   // --- GETTERS for data from services ---
   List<TourStop> get tourStops => _tourStateService.tourStops;
@@ -118,6 +120,12 @@ class HomePageViewModel extends ChangeNotifier {
         _audioService.stop(stop.name);
       }
     }
+    notifyListeners();
+  }
+
+  /// --- NEW: Method to handle the new toggle's state ---
+  void toggleShowPinInfo(bool isEnabled) {
+    showPinInfo = isEnabled;
     notifyListeners();
   }
 

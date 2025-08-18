@@ -1,10 +1,12 @@
-////////////////////////////////// START OF CODE FOR 
+////////////////////////////////// START OF CODE FOR
 // lib/pages/home_page.dart
 
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' as ui; // Import for image rendering
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart'; // Import for RepaintBoundary
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
@@ -31,15 +33,16 @@ class _HomePageState extends State<HomePage> {
   int _newPinCounter = 1;
   bool _isMarkerBeingDragged = false;
 
-  // --- THIS IS THE FIX ---
+  // --- NEW: State for managing custom marker icons ---
+  final Map<String, GlobalKey> _markerKeys = {};
+  final Map<String, BitmapDescriptor> _markerIcons = {};
+  bool _areCustomIconsBuilt = false;
+
+
   @override
   void initState() {
     super.initState();
-    // Use addPostFrameCallback to ensure the widget tree is fully built
-    // before we try to access the provider.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // This call "wakes up" the location-based audio playback logic
-      // now that the user is viewing the map.
       Provider.of<HomePageViewModel>(context, listen: false).activatePlayback();
     });
   }
@@ -157,32 +160,131 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Widget _pinInfoWidget(TourStop stop) {
+    String audioFileName = stop.audioAsset;
+    final lastDotIndex = audioFileName.lastIndexOf('.');
+    if (lastDotIndex != -1) {
+      audioFileName = audioFileName.substring(0, lastDotIndex);
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.75),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white54, width: 1),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(stop.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+          const SizedBox(height: 2),
+          Text(audioFileName, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          Text(stop.behavior.name, style: const TextStyle(color: Colors.cyanAccent, fontStyle: FontStyle.italic, fontSize: 9)),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildOffscreenMarkerWidgets(HomePageViewModel viewModel) {
+    if (!viewModel.showPinInfo) {
+      if (_areCustomIconsBuilt) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => setState(() {
+          _areCustomIconsBuilt = false;
+          _markerIcons.clear();
+        }));
+      }
+      return [];
+    }
+    
+    _markerKeys.removeWhere((key, value) => !viewModel.tourStops.any((s) => s.name == key));
+    
+    return viewModel.tourStops.map((stop) {
+      final key = _markerKeys.putIfAbsent(stop.name, () => GlobalKey());
+      return Transform.translate(
+        offset: const Offset(-9999, -9999),
+        child: RepaintBoundary(
+          key: key,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _pinInfoWidget(stop),
+              // --- THIS IS THE FIX: Use the dynamic color from PinColor ---
+              Icon(Icons.location_on, color: PinColor.getCircleColor(stop.label), size: 42),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  Future<void> _updateMarkerIcons(HomePageViewModel viewModel) async {
+    if (!viewModel.showPinInfo || _areCustomIconsBuilt) return;
+
+    final Map<String, BitmapDescriptor> newIcons = {};
+
+    for (final stop in viewModel.tourStops) {
+      final key = _markerKeys[stop.name];
+      if (key == null) continue;
+      final context = key.currentContext;
+      if (context == null) continue;
+      
+      try {
+        final boundary = context.findRenderObject() as RenderRepaintBoundary;
+        final image = await boundary.toImage(pixelRatio: 2.5);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        
+        if (byteData == null) continue;
+        
+        final bytes = byteData.buffer.asUint8List();
+        newIcons[stop.name] = BitmapDescriptor.fromBytes(bytes);
+      } catch (e) {
+        debugPrint("Error creating marker icon for ${stop.name}: $e");
+      }
+    }
+    
+    if (mounted && newIcons.isNotEmpty) {
+      setState(() {
+        _markerIcons.addAll(newIcons);
+        _areCustomIconsBuilt = true;
+      });
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Consumer<HomePageViewModel>(
       builder: (context, viewModel, child) {
-        // This is a one-time operation after the view model has finished loading.
-        // We listen for the first time isLoading becomes false with content.
         if (!viewModel.isLoading && viewModel.tourStops.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _zoomToFitAllStops(viewModel.tourStops);
+            _updateMarkerIcons(viewModel);
           });
         }
 
         return Scaffold(
-          body: () {
-            if (viewModel.isLoading) {
-              return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const CircularProgressIndicator(), const SizedBox(height: 20), Text(viewModel.statusMessage),
-              ]));
-            }
-            
-            if (widget.isProductionMode) {
-              return _buildDisabledView();
-            }
-            
-            return _buildTourUI(viewModel);
-          }(),
+          body: Stack(
+            children: [
+              Builder(
+                builder: (context) {
+                  if (viewModel.isLoading) {
+                    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const CircularProgressIndicator(), const SizedBox(height: 20), Text(viewModel.statusMessage),
+                    ]));
+                  }
+                  
+                  if (widget.isProductionMode) {
+                    return _buildDisabledView();
+                  }
+                  
+                  return _buildTourUI(viewModel);
+                },
+              ),
+              ..._buildOffscreenMarkerWidgets(viewModel),
+            ],
+          ),
         );
       },
     );
@@ -201,22 +303,27 @@ class _HomePageState extends State<HomePage> {
           _mapController = controller;
           final String mapStyle = await rootBundle.loadString('assets/map_styles/dark_mode.json');
           await _mapController!.setMapStyle(mapStyle);
-          // The zoom operation is now handled in the main build method's post-frame callback
         },
         markers: tourStops.map((stop) {
           final isPlaying = viewModel.currentlyPlayingIds.contains(stop.name);
           final hasFailed = failedAudioPins.contains(stop.name);
 
-          final icon = PinColor.getPinIcon(
-            label: stop.label,
-            isPlaying: isPlaying,
-            hasFailed: hasFailed,
-          );
-
+          BitmapDescriptor icon;
+          if (viewModel.showPinInfo && _markerIcons.containsKey(stop.name)) {
+            icon = _markerIcons[stop.name]!;
+          } else {
+            icon = PinColor.getPinIcon(
+              label: stop.label,
+              isPlaying: isPlaying,
+              hasFailed: hasFailed,
+            );
+          }
+          
           return Marker(
             markerId: MarkerId(stop.name),
             position: LatLng(stop.latitude, stop.longitude),
             icon: icon,
+            anchor: viewModel.showPinInfo ? const Offset(0.5, 0.9) : const Offset(0.5, 1.0), 
             draggable: viewModel.isEditModeEnabled,
             onDragStart: (_) { if (viewModel.isEditModeEnabled) setState(() => _isMarkerBeingDragged = true); },
             onDragEnd: (newPosition) { if (viewModel.isEditModeEnabled) {
@@ -295,10 +402,27 @@ class _HomePageState extends State<HomePage> {
           Switch(
             value: viewModel.isEditModeEnabled, 
             activeColor: Colors.purpleAccent, 
-            onChanged: viewModel.toggleEditMode,
+            onChanged: (isEnabled) {
+              if (viewModel.showPinInfo) {
+                viewModel.toggleShowPinInfo(false);
+              }
+              viewModel.toggleEditMode(isEnabled);
+            },
           ),
         ]),
         if (viewModel.isEditModeEnabled) ...[
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text('Show Pin Info', style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
+            Switch(
+              value: viewModel.showPinInfo, 
+              activeColor: Colors.cyanAccent, 
+              onChanged: (isEnabled) {
+                setState(() => _areCustomIconsBuilt = false);
+                viewModel.toggleShowPinInfo(isEnabled);
+              },
+            ),
+          ]),
           const SizedBox(height: 8),
           ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white), icon: const Icon(Icons.print), label: const Text('Export Tour to JSON'), onPressed: () => _exportToJson(viewModel)),
           const SizedBox(height: 8),
