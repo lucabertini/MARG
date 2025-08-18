@@ -139,6 +139,31 @@ class _HomePageState extends State<HomePage> {
       ],
     ));
   }
+  
+  void _showLanguageDialog(HomePageViewModel viewModel) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Language'),
+          backgroundColor: Colors.grey.shade900,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: AppLanguage.values.map((lang) {
+              return ListTile(
+                title: Text(lang == AppLanguage.it ? 'Italiano' : 'English'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _onLanguageChanged(viewModel, lang);
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
 
   void _zoomToFitAllStops(List<TourStop> tourStops) {
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -178,10 +203,10 @@ class _HomePageState extends State<HomePage> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(stop.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+          Text(stop.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 8)),
           const SizedBox(height: 2),
-          Text(audioFileName, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-          Text(stop.behavior.name, style: const TextStyle(color: Colors.cyanAccent, fontStyle: FontStyle.italic, fontSize: 9)),
+          Text(audioFileName, style: const TextStyle(color: Colors.white70, fontSize: 8)),
+          Text(stop.behavior.name, style: const TextStyle(color: Colors.cyanAccent, fontStyle: FontStyle.italic, fontSize: 5)),
         ],
       ),
     );
@@ -210,7 +235,6 @@ class _HomePageState extends State<HomePage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _pinInfoWidget(stop),
-              // --- THIS IS THE FIX: Use the dynamic color from PinColor ---
               Icon(Icons.location_on, color: PinColor.getCircleColor(stop.label), size: 42),
             ],
           ),
@@ -294,7 +318,7 @@ class _HomePageState extends State<HomePage> {
     final audioService = context.read<AudioService>();
     final tourStops = viewModel.tourStops;
     final failedAudioPins = viewModel.failedAudioPins;
-    const double mapPadding = 270;
+    const double mapPadding = 120;
     
     return Stack(children: [
       GoogleMap(
@@ -374,62 +398,128 @@ class _HomePageState extends State<HomePage> {
           }
         },
       ),
-      Positioned(left: 0, right: 0, bottom: 0, child: _buildStatusPanel(viewModel))
+      Positioned(left: 0, right: 0, bottom: 0, child: _buildControlBar(viewModel))
     ]);
   }
 
-  Widget _buildStatusPanel(HomePageViewModel viewModel) {
+  // --- WIDGETS FOR THE NEW CONTROL BAR ---
+
+  Widget _buildControlBar(HomePageViewModel viewModel) {
     return Container(
-      padding: const EdgeInsets.all(12.0),
-      margin: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(color: Colors.black.withOpacity(0.8), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white24)),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('KITCHEN LAB', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
-        const Divider(color: Colors.white24, height: 20),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Audio Language', style: TextStyle(color: Colors.lightBlueAccent, fontWeight: FontWeight.bold)),
-          DropdownButton<AppLanguage>(
-            value: viewModel.selectedLanguage,
-            items: AppLanguage.values.map((lang) => DropdownMenuItem(value: lang, child: Text(lang.name.toUpperCase()))).toList(),
-            onChanged: (lang) => _onLanguageChanged(viewModel, lang),
-            underline: Container(),
-            dropdownColor: Colors.grey.shade800,
-          )
-        ]),
-        const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Edit Mode', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold)),
-          Switch(
-            value: viewModel.isEditModeEnabled, 
-            activeColor: Colors.purpleAccent, 
-            onChanged: (isEnabled) {
-              if (viewModel.showPinInfo) {
-                viewModel.toggleShowPinInfo(false);
-              }
-              viewModel.toggleEditMode(isEnabled);
-            },
-          ),
-        ]),
-        if (viewModel.isEditModeEnabled) ...[
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Show Pin Info', style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
-            Switch(
-              value: viewModel.showPinInfo, 
-              activeColor: Colors.cyanAccent, 
-              onChanged: (isEnabled) {
-                setState(() => _areCustomIconsBuilt = false);
-                viewModel.toggleShowPinInfo(isEnabled);
-              },
-            ),
-          ]),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white), icon: const Icon(Icons.print), label: const Text('Export Tour to JSON'), onPressed: () => _exportToJson(viewModel)),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white), icon: const Icon(Icons.delete_sweep), label: const Text('Reset Tour to Default'), onPressed: () => _showResetConfirmationDialog(viewModel)),
-        ]
-      ]),
+      margin: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(50), // Pill shape
+          border: Border.all(color: Colors.white30, width: 0.5),
+      ),
+      child: viewModel.isEditModeEnabled
+          ? _buildExpandedControls(viewModel)
+          : _buildCompactControls(viewModel),
     );
+  }
+
+  Widget _buildCompactControls(HomePageViewModel viewModel) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildCircularButton(
+          text: viewModel.selectedLanguage.name.toUpperCase(),
+          onPressed: () => _showLanguageDialog(viewModel),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+        _buildCircularButton(
+          text: 'EDIT',
+          onPressed: () => viewModel.toggleEditMode(true),
+          backgroundColor: Colors.purpleAccent,
+        ),
+      ],
+    );
+  }
+  
+  // --- MODIFIED: Reordered the buttons ---
+  Widget _buildExpandedControls(HomePageViewModel viewModel) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // IT button moved to the far left
+        _buildCircularButton(
+          text: viewModel.selectedLanguage.name.toUpperCase(),
+          tooltip: 'Change Language',
+          onPressed: () => _showLanguageDialog(viewModel),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+        _buildCircularButton(
+          text: 'EX',
+          tooltip: 'Export Tour to JSON',
+          onPressed: () => _exportToJson(viewModel),
+          backgroundColor: Colors.blueGrey.shade700,
+        ),
+        _buildCircularButton(
+          text: 'REV',
+          tooltip: 'Reset Tour',
+          onPressed: () => _showResetConfirmationDialog(viewModel),
+          backgroundColor: Colors.blueGrey.shade700,
+        ),
+        _buildCircularButton(
+          text: 'PINS',
+          tooltip: 'Show/Hide Pin Info',
+          onPressed: () {
+            setState(() => _areCustomIconsBuilt = false);
+            viewModel.toggleShowPinInfo(!viewModel.showPinInfo);
+          },
+          backgroundColor: viewModel.showPinInfo ? Colors.green.shade600 : Colors.purpleAccent,
+        ),
+        _buildCircularButton(
+          text: 'EDIT',
+          tooltip: 'Exit Edit Mode',
+          onPressed: () {
+            if (viewModel.showPinInfo) {
+              viewModel.toggleShowPinInfo(false);
+            }
+            viewModel.toggleEditMode(false);
+          },
+          backgroundColor: Colors.green.shade600,
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildCircularButton({
+    String? text,
+    IconData? icon,
+    required VoidCallback onPressed,
+    required Color backgroundColor,
+    String? tooltip,
+    Color foregroundColor = Colors.white,
+    double size = 52.0,
+  }) {
+    final buttonContent = text != null
+        ? Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))
+        : Icon(icon, size: 24);
+
+    final button = ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        shape: const CircleBorder(),
+        padding: EdgeInsets.zero,
+        fixedSize: Size(size * 0.95, size * 0.95),
+      ),
+      child: buttonContent,
+    );
+    
+    if (tooltip != null) {
+      return Tooltip(
+        message: tooltip,
+        child: button,
+      );
+    }
+    
+    return button;
   }
 
   Widget _buildDisabledView() {
